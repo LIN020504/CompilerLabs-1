@@ -1,60 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CompilerLabs.Core.Lexer
 {
     public class Lexer
     {
         private readonly string _input;
-        private int _position;
-        private int _line = 1;
-        private int _column = 1;
-
-        private static readonly Dictionary<string, TokenType> Keywords = new()
-        {
-            ["var"] = TokenType.VAR,
-            ["print"] = TokenType.PRINT,
-            ["if"] = TokenType.IF,
-            ["else"] = TokenType.ELSE,
-            ["while"] = TokenType.WHILE
-        };
-
-        private static readonly Dictionary<string, TokenType> Operators = new()
-        {
-            ["=="] = TokenType.EQEQ,
-            ["!="] = TokenType.NEQ,
-            ["<="] = TokenType.LTEQ,
-            [">="] = TokenType.GTEQ,
-            ["&&"] = TokenType.AND,
-            ["||"] = TokenType.OR,
-            ["+"] = TokenType.PLUS,
-            ["-"] = TokenType.MINUS,
-            ["*"] = TokenType.STAR,
-            ["/"] = TokenType.SLASH,
-            ["="] = TokenType.EQ,
-            ["<"] = TokenType.LT,
-            [">"] = TokenType.GT,
-            ["!"] = TokenType.EXCL,
-            ["("] = TokenType.LPAREN,
-            [")"] = TokenType.RPAREN,
-            ["{"] = TokenType.LBRACE,
-            ["}"] = TokenType.RBRACE,
-            [";"] = TokenType.SEMICOLON
-        };
+        private int _position = 0;
 
         public Lexer(string input)
         {
             _input = input ?? "";
         }
 
+        // ==========================================
+        // TOKENIZE
+        // ==========================================
+
         public IEnumerable<Token> Tokenize()
         {
             while (_position < _input.Length)
             {
-                var current = Peek();
+                char current = Peek();
+
+                // whitespace
 
                 if (char.IsWhiteSpace(current))
                 {
@@ -62,104 +32,222 @@ namespace CompilerLabs.Core.Lexer
                     continue;
                 }
 
+                // number
+
                 if (char.IsDigit(current))
                 {
                     yield return ReadNumber();
                     continue;
                 }
 
-                if (char.IsLetter(current))
+                // identifier / keyword
+
+                if (char.IsLetter(current) || current == '_')
                 {
-                    yield return ReadWord();
+                    yield return ReadIdentifier();
                     continue;
                 }
 
-                yield return ReadOperatorOrPunctuation();
-            }
+                // string
 
-            yield return new Token(TokenType.EOF, "\0", _position, _line, _column);
-        }
-
-        private Token ReadNumber()
-        {
-            var startPos = _position;
-            var startLine = _line;
-            var startCol = _column;
-
-            while (char.IsDigit(Peek())) 
-                Next();
-
-            var text = _input.Substring(startPos, _position - startPos);
-
-            return new Token(TokenType.NUMBER, text, startPos, startLine, startCol);
-        }
-
-        private Token ReadWord()
-        {
-            var startPos = _position;
-            var startLine = _line;
-            var startCol = _column;
-
-            while (char.IsLetterOrDigit(Peek())) 
-                Next();
-
-            var text = _input.Substring(startPos, _position - startPos);
-            var type = Keywords.TryGetValue(text, out var kwType) ? kwType : TokenType.ID;
-
-            return new Token(type, text, startPos, startLine, startCol);
-        }
-
-        private Token ReadOperatorOrPunctuation()
-        {
-            var startPos = _position;
-            var startLine = _line;
-            var startCol = _column;
-
-            if (_position + 1 < _input.Length)
-            {
-                var twoChars = _input.Substring(_position, 2);
-
-                //пробуем считать операторы вида ==, !=
-                if (Operators.TryGetValue(twoChars, out var opType))
+                if (current == '"')
                 {
-                    Next(); 
-                    Next();
-                    
-                    return new Token(opType, twoChars, startPos, startLine, startCol);
+                    yield return ReadString();
+                    continue;
+                }
+
+                // symbols
+
+                switch (current)
+                {
+                    case '+':
+                        Next();
+                        yield return new Token(TokenType.PLUS, "+");
+                        break;
+
+                    case '-':
+                        Next();
+                        yield return new Token(TokenType.MINUS, "-");
+                        break;
+
+                    case '*':
+                        Next();
+                        yield return new Token(TokenType.STAR, "*");
+                        break;
+
+                    case '/':
+                        Next();
+                        yield return new Token(TokenType.SLASH, "/");
+                        break;
+
+                    case '=':
+                        Next();
+                        yield return new Token(TokenType.EQ, "=");
+                        break;
+
+                    case ';':
+                        Next();
+                        yield return new Token(TokenType.SEMICOLON, ";");
+                        break;
+
+                    case ',':
+                        Next();
+                        yield return new Token(TokenType.COMMA, ",");
+                        break;
+
+                    case '(':
+                        Next();
+                        yield return new Token(TokenType.LPAREN, "(");
+                        break;
+
+                    case ')':
+                        Next();
+                        yield return new Token(TokenType.RPAREN, ")");
+                        break;
+
+                    case '{':
+                        Next();
+                        yield return new Token(TokenType.LBRACE, "{");
+                        break;
+
+                    case '}':
+                        Next();
+                        yield return new Token(TokenType.RBRACE, "}");
+                        break;
+
+                    // ARRAY SUPPORT
+
+                    case '[':
+                        Next();
+                        yield return new Token(TokenType.LBRACKET, "[");
+                        break;
+
+                    case ']':
+                        Next();
+                        yield return new Token(TokenType.RBRACKET, "]");
+                        break;
+
+                    default:
+                        throw new Exception(
+                            $"Unexpected character: {current}");
                 }
             }
 
-            var oneChar = _input[_position].ToString();
-            if (Operators.TryGetValue(oneChar, out var type))
-            {
-                Next();
-                return new Token(type, oneChar, startPos, startLine, startCol);
-            }
-
-            var badChar = Peek();
-
-            throw new Exception($"[Lexer Error] Unexpected character '{badChar}' at Line {startLine}, Column {startCol}");
+            yield return new Token(TokenType.EOF, "");
         }
 
-        private char Peek() => _position >= _input.Length ? '\0' : _input[_position];
+        // ==========================================
+        // NUMBER
+        // ==========================================
 
-        private char Next()
+        private Token ReadNumber()
         {
-            if (_position >= _input.Length) return '\0';
+            int start = _position;
 
-            char current = _input[_position++];
+            while (char.IsDigit(Peek()))
+                Next();
 
-            if (current == '\n')
+            // decimal support
+
+            if (Peek() == '.')
             {
-                _line++;
-                _column = 1;
-            }
-            else
-            {
-                _column++;
+                Next();
+
+                while (char.IsDigit(Peek()))
+                    Next();
             }
 
-            return current;
+            string text =
+                _input.Substring(start,
+                _position - start);
+
+            return new Token(
+                TokenType.NUMBER,
+                text);
+        }
+
+        // ==========================================
+        // STRING
+        // ==========================================
+
+        private Token ReadString()
+        {
+            // skip opening quote
+
+            Next();
+
+            var sb = new StringBuilder();
+
+            while (Peek() != '"' && Peek() != '\0')
+            {
+                sb.Append(Peek());
+                Next();
+            }
+
+            if (Peek() != '"')
+            {
+                throw new Exception(
+                    "Unterminated string");
+            }
+
+            // skip closing quote
+
+            Next();
+
+            return new Token(
+                TokenType.STRING,
+                sb.ToString());
+        }
+
+        // ==========================================
+        // IDENTIFIER / KEYWORD
+        // ==========================================
+
+        private Token ReadIdentifier()
+        {
+            int start = _position;
+
+            while (char.IsLetterOrDigit(Peek()) || Peek() == '_')
+                Next();
+
+            string text =
+                _input.Substring(start,
+                _position - start);
+
+            return text switch
+            {
+                "fun" =>
+                    new Token(TokenType.FUN, text),
+
+                "return" =>
+                    new Token(TokenType.RETURN, text),
+
+                "true" =>
+                    new Token(TokenType.TRUE, text),
+
+                "false" =>
+                    new Token(TokenType.FALSE, text),
+
+                _ =>
+                    new Token(TokenType.ID, text)
+            };
+        }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+
+        private char Peek()
+        {
+            if (_position >= _input.Length)
+                return '\0';
+
+            return _input[_position];
+        }
+
+        private void Next()
+        {
+            _position++;
         }
     }
 }

@@ -1,39 +1,44 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace CompilerLabs.Core.Parser.Ast
 {
     /// <summary>
     /// Инструкция-обертка над выражением.
-    /// Позволяет использовать выражение там, где ожидается инструкция (например: "x = 5;" или "foo();")
     /// </summary>
     public class ExpressionStatement : Statement
     {
         public Expression Expression { get; }
-        public ExpressionStatement(Expression expression, int line, int column) : base(line, column) => Expression = expression;
+
+        public ExpressionStatement(Expression expression)
+        {
+            Expression = expression;
+        }
     }
 
     /// <summary>
-    /// Вывод в консоль: print x + 2;
+    /// Вывод в консоль.
     /// </summary>
     public class PrintStatement : Statement
     {
         public Expression Expression { get; }
-        public PrintStatement(Expression expression, int line, int column) : base(line, column) => Expression = expression;
+
+        public PrintStatement(Expression expression)
+        {
+            Expression = expression;
+        }
     }
 
     /// <summary>
-    /// Объявление новой переменной: var x = 5;
+    /// Объявление переменной.
     /// </summary>
     public class VarStatement : Statement
     {
         public string Name { get; }
         public Expression Initializer { get; }
 
-        public VarStatement(string name, Expression initializer, int line, int column) : base(line, column)
+        public VarStatement(
+            string name,
+            Expression initializer)
         {
             Name = name;
             Initializer = initializer;
@@ -41,17 +46,20 @@ namespace CompilerLabs.Core.Parser.Ast
     }
 
     /// <summary>
-    /// Блок кода. Группирует несколько инструкций в одну (всё, что внутри { ... }).
-    /// Жизненно необходимо для if и while.
+    /// Блок кода.
     /// </summary>
     public class BlockStatement : Statement
     {
         public List<Statement> Statements { get; }
-        public BlockStatement(List<Statement> statements, int line, int column) : base(line, column) => Statements = statements;
+
+        public BlockStatement(List<Statement> statements)
+        {
+            Statements = statements;
+        }
     }
 
     /// <summary>
-    /// Инструкция ветвления: if (условие) { ... } else { ... }
+    /// Ветвление if.
     /// </summary>
     public class IfStatement : Statement
     {
@@ -59,7 +67,10 @@ namespace CompilerLabs.Core.Parser.Ast
         public Statement ThenBranch { get; }
         public Statement ElseBranch { get; }
 
-        public IfStatement(Expression condition, Statement thenBranch, Statement elseBranch, int line, int column) : base(line, column)
+        public IfStatement(
+            Expression condition,
+            Statement thenBranch,
+            Statement elseBranch)
         {
             Condition = condition;
             ThenBranch = thenBranch;
@@ -68,14 +79,16 @@ namespace CompilerLabs.Core.Parser.Ast
     }
 
     /// <summary>
-    /// Цикл: while (условие) { ... }
+    /// Цикл while.
     /// </summary>
     public class WhileStatement : Statement
     {
         public Expression Condition { get; }
         public Statement Body { get; }
 
-        public WhileStatement(Expression condition, Statement body, int line, int column) : base(line, column)
+        public WhileStatement(
+            Expression condition,
+            Statement body)
         {
             Condition = condition;
             Body = body;

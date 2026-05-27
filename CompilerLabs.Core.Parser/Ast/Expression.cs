@@ -21,15 +21,6 @@ namespace CompilerLabs.Core.Parser.Ast
     /// 
     /// Ментальная проверка: если вы можете подставить это в правую часть присваивания (var a = ...;), то это Expression.
     /// </summary>
-    public abstract class Expression
-    {
-        public int Line { get; }
-        public int Column { get; }
+    public abstract class Expression{}
 
-        protected Expression(int line, int column)
-        {
-            Line = line;
-            Column = column;
-        }
-    }
 }

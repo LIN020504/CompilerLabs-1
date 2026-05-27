@@ -57,7 +57,7 @@ namespace CompilerLabs.Core.Parser
                 var tokens = lexer.Tokenize();
 
                 var parser = new Parser(tokens);
-                var ast = parser.Parse();
+                var ast = parser.ParseProgram();
 
                 // 3. Атомарно сохраняем свежий результат в кэш
                 _blocks[blockId] = new BlockState

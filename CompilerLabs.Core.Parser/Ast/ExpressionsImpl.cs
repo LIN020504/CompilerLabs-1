@@ -1,9 +1,5 @@
 ﻿using CompilerLabs.Core.Lexer;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CompilerLabs.Core.Parser.Ast
 {
@@ -12,12 +8,16 @@ namespace CompilerLabs.Core.Parser.Ast
     // ==========================================
 
     /// <summary>
-    /// Числовой литерал (например: 42, 3.14)
+    /// Числовой литерал
     /// </summary>
     public class NumberExpression : Expression
     {
         public double Value { get; }
-        public NumberExpression(double value, int line, int column) : base(line, column) => Value = value;
+
+        public NumberExpression(double value)
+        {
+            Value = value;
+        }
     }
 
     /// <summary>
@@ -26,21 +26,29 @@ namespace CompilerLabs.Core.Parser.Ast
     public class StringExpression : Expression
     {
         public string Value { get; }
-        public StringExpression(string value, int line, int column) : base(line, column) => Value = value;
+
+        public StringExpression(string value)
+        {
+            Value = value;
+        }
     }
 
+
     /// <summary>
-    /// Обращение к переменной по имени (например: x)
+    /// Переменная
     /// </summary>
     public class VariableExpression : Expression
     {
         public string Name { get; }
-        public VariableExpression(string name, int line, int column) : base(line, column) => Name = name;
+
+        public VariableExpression(string name)
+        {
+            Name = name;
+        }
     }
 
     /// <summary>
-    /// Бинарная операция (математика, логика, сравнение).
-    /// Например: x + 5, y == 10, a && b
+    /// Бинарная операция
     /// </summary>
     public class BinaryExpression : Expression
     {
@@ -48,7 +56,10 @@ namespace CompilerLabs.Core.Parser.Ast
         public TokenType Operator { get; }
         public Expression Right { get; }
 
-        public BinaryExpression(Expression left, TokenType op, Expression right, int line, int column) : base(line, column)
+        public BinaryExpression(
+            Expression left,
+            TokenType op,
+            Expression right)
         {
             Left = left;
             Operator = op;
@@ -57,15 +68,16 @@ namespace CompilerLabs.Core.Parser.Ast
     }
 
     /// <summary>
-    /// Унарная операция (оператор перед одним выражением).
-    /// Например: -x, !isValid
+    /// Унарная операция
     /// </summary>
     public class UnaryExpression : Expression
     {
         public TokenType Operator { get; }
         public Expression Right { get; }
 
-        public UnaryExpression(TokenType op, Expression right, int line, int column) : base(line, column)
+        public UnaryExpression(
+            TokenType op,
+            Expression right)
         {
             Operator = op;
             Right = right;
@@ -73,18 +85,36 @@ namespace CompilerLabs.Core.Parser.Ast
     }
 
     /// <summary>
-    /// Выражение присваивания (например: x = 10 + 5)
-    /// Почему это Expression? Чтобы можно было делать так: a = b = 5;
+    /// Присваивание
     /// </summary>
     public class AssignExpression : Expression
     {
         public string Name { get; }
         public Expression Value { get; }
 
-        public AssignExpression(string name, Expression value, int line, int column) : base(line, column)
+        public AssignExpression(
+            string name,
+            Expression value)
         {
             Name = name;
             Value = value;
+        }
+    }
+
+    /// <summary>
+    /// Вызов функции
+    /// </summary>
+    public class CallExpression : Expression
+    {
+        public string Callee { get; }
+        public List<Expression> Arguments { get; }
+
+        public CallExpression(
+            string callee,
+            List<Expression> arguments)
+        {
+            Callee = callee;
+            Arguments = arguments;
         }
     }
 }

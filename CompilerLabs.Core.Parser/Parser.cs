@@ -5,269 +5,281 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace CompilerLabs.Core.Parser
-{   
-    public class ParseException : Exception { }
-
+{
     public class Parser
     {
         private readonly List<Token> _tokens;
-        private int _position;
+        private int _position = 0;
 
-        public List<string> Errors { get; } = new List<string>();
+        public List<string> Errors { get; } = new();
 
         public Parser(IEnumerable<Token> tokens)
         {
             _tokens = tokens.ToList();
-            _position = 0;
         }
 
-        public List<Statement> Parse()
+        // ==========================================
+        // PROGRAM
+        // ==========================================
+
+        public List<Statement> ParseProgram()
         {
             var statements = new List<Statement>();
+
             while (!IsAtEnd())
             {
-                try
-                {
-                    statements.Add(ParseDeclaration());
-                }
-                catch (ParseException)
-                {
-                    Synchronize(); // Синхронизируемся и идем дальше
-                }
+                statements.Add(ParseStatement());
             }
+
             return statements;
         }
 
-        private Statement ParseDeclaration()
-        {
-            if (Match(TokenType.VAR)) return ParseVarDeclaration();
-            return ParseStatement();
-        }
+        // ==========================================
+        // STATEMENTS
+        // ==========================================
 
         private Statement ParseStatement()
         {
-            if (Match(TokenType.IF)) return ParseIfStatement();
-            if (Match(TokenType.WHILE)) return ParseWhileStatement();
-            if (Match(TokenType.PRINT)) return ParsePrintStatement();
+            if (Match(TokenType.FUN))
+                return ParseFunctionDeclaration();
 
-            if (Match(TokenType.LBRACE))
+            if (Match(TokenType.RETURN))
+                return ParseReturnStatement();
+
+            throw Error(Peek(), "Unexpected statement");
+        }
+
+        private FunctionDeclaration ParseFunctionDeclaration()
+        {
+            var name =
+                Consume(TokenType.ID,
+                "Expected function name").Value;
+
+            Consume(TokenType.LPAREN,
+                "Expected '(' after function name");
+
+            var parameters = new List<string>();
+
+            if (!Check(TokenType.RPAREN))
             {
-                var line = Previous().Line;
-                var col = Previous().Column;
-                return new BlockStatement(ParseBlock(), line, col);
+                do
+                {
+                    parameters.Add(
+                        Consume(
+                            TokenType.ID,
+                            "Expected parameter name").Value);
+                }
+                while (Match(TokenType.COMMA));
             }
 
-            return ParseExpressionStatement();
+            Consume(TokenType.RPAREN,
+                "Expected ')' after parameters");
+
+            var body = ParseBlock();
+
+            return new FunctionDeclaration(
+                name,
+                parameters,
+                body);
         }
 
-        private Statement ParseVarDeclaration()
+        private ReturnStatement ParseReturnStatement()
         {
-            Token keyword = Previous();
-            Token name = Consume(TokenType.ID, "Ожидается имя переменной.");
-            Expression initializer = null;
+            var value = ParseExpression();
 
-            if (Match(TokenType.EQ))
-            {
-                initializer = ParseExpression();
-            }
+            Consume(
+                TokenType.SEMICOLON,
+                "Expected ';' after return value");
 
-            Consume(TokenType.SEMICOLON, "Ожидается ';' после объявления переменной.");
-            return new VarStatement(name.Value, initializer, keyword.Line, keyword.Column);
-        }
-
-        private Statement ParseIfStatement()
-        {
-            Token keyword = Previous();
-            Consume(TokenType.LPAREN, "Ожидается '(' после 'if'.");
-            Expression condition = ParseExpression();
-            Consume(TokenType.RPAREN, "Ожидается ')' после условия 'if'.");
-
-            Statement thenBranch = ParseStatement();
-            Statement elseBranch = null;
-
-            if (Match(TokenType.ELSE))
-            {
-                elseBranch = ParseStatement();
-            }
-
-            return new IfStatement(condition, thenBranch, elseBranch, keyword.Line, keyword.Column);
-        }
-
-        private Statement ParseWhileStatement()
-        {
-            Token keyword = Previous();
-            Consume(TokenType.LPAREN, "Ожидается '(' после 'while'.");
-            Expression condition = ParseExpression();
-            Consume(TokenType.RPAREN, "Ожидается ')' после условия 'while'.");
-
-            Statement body = ParseStatement();
-            return new WhileStatement(condition, body, keyword.Line, keyword.Column);
-        }
-
-        private Statement ParsePrintStatement()
-        {
-            Token keyword = Previous();
-            Expression value = ParseExpression();
-            Consume(TokenType.SEMICOLON, "Ожидается ';' после значения.");
-            return new PrintStatement(value, keyword.Line, keyword.Column);
-        }
-
-        private Statement ParseExpressionStatement()
-        {
-            Expression expr = ParseExpression();
-            Token prev = Previous();
-            Consume(TokenType.SEMICOLON, "Ожидается ';' после выражения.");
-            return new ExpressionStatement(expr, prev.Line, prev.Column);
+            return new ReturnStatement(value);
         }
 
         private List<Statement> ParseBlock()
         {
+            Consume(TokenType.LBRACE,
+                "Expected '{'");
+
             var statements = new List<Statement>();
 
-            while (!Check(TokenType.RBRACE) && !IsAtEnd())
+            while (!Check(TokenType.RBRACE))
             {
-                statements.Add(ParseDeclaration());
+                statements.Add(ParseStatement());
             }
 
-            Consume(TokenType.RBRACE, "Ожидается '}' после блока.");
+            Consume(TokenType.RBRACE,
+                "Expected '}'");
+
             return statements;
         }
 
+        // ==========================================
+        // EXPRESSIONS
+        // ==========================================
+
         private Expression ParseExpression()
+            => ParseAddition();
+
+        private Expression ParseAddition()
         {
-            return ParseAssignment();
-        }
+            var expr = ParseMultiplication();
 
-        private Expression ParseAssignment()
-        {
-            Expression expr = ParseLogicalOr();
-
-            if (Match(TokenType.EQ))
-            {
-                Token equals = Previous();
-                Expression value = ParseAssignment();
-
-                if (expr is VariableExpression varExpr)
-                {
-                    return new AssignExpression(varExpr.Name, value, equals.Line, equals.Column);
-                }
-
-                Error(equals, "Недопустимая цель для присваивания.");
-                throw new ParseException();
-            }
-
-            return expr;
-        }
-
-        private Expression ParseLogicalOr()
-        {
-            Expression expr = ParseLogicalAnd();
-            while (Match(TokenType.OR))
-            {
-                Token op = Previous();
-                Expression right = ParseLogicalAnd();
-                expr = new BinaryExpression(expr, op.Type, right, op.Line, op.Column);
-            }
-            return expr;
-        }
-
-        private Expression ParseLogicalAnd()
-        {
-            Expression expr = ParseEquality();
-            while (Match(TokenType.AND))
-            {
-                Token op = Previous();
-                Expression right = ParseEquality();
-                expr = new BinaryExpression(expr, op.Type, right, op.Line, op.Column);
-            }
-            return expr;
-        }
-
-        private Expression ParseEquality()
-        {
-            Expression expr = ParseComparison();
-            while (Match(TokenType.EQEQ, TokenType.NEQ))
-            {
-                Token op = Previous();
-                Expression right = ParseComparison();
-                expr = new BinaryExpression(expr, op.Type, right, op.Line, op.Column);
-            }
-            return expr;
-        }
-
-        private Expression ParseComparison()
-        {
-            Expression expr = ParseTerm();
-            while (Match(TokenType.LT, TokenType.LTEQ, TokenType.GT, TokenType.GTEQ))
-            {
-                Token op = Previous();
-                Expression right = ParseTerm();
-                expr = new BinaryExpression(expr, op.Type, right, op.Line, op.Column);
-            }
-            return expr;
-        }
-
-        private Expression ParseTerm()
-        {
-            Expression expr = ParseFactor();
             while (Match(TokenType.PLUS, TokenType.MINUS))
             {
-                Token op = Previous();
-                Expression right = ParseFactor();
-                expr = new BinaryExpression(expr, op.Type, right, op.Line, op.Column);
+                var op = Previous().Type;
+
+                var right = ParseMultiplication();
+
+                expr = new BinaryExpression(
+                    expr,
+                    op,
+                    right);
             }
+
             return expr;
         }
 
-        private Expression ParseFactor()
+        private Expression ParseMultiplication()
         {
-            Expression expr = ParseUnary();
+            var expr = ParsePrimary();
+
             while (Match(TokenType.STAR, TokenType.SLASH))
             {
-                Token op = Previous();
-                Expression right = ParseUnary();
-                expr = new BinaryExpression(expr, op.Type, right, op.Line, op.Column);
+                var op = Previous().Type;
+
+                var right = ParsePrimary();
+
+                expr = new BinaryExpression(
+                    expr,
+                    op,
+                    right);
             }
+
             return expr;
         }
 
-        private Expression ParseUnary()
-        {
-            if (Match(TokenType.EXCL, TokenType.MINUS))
-            {
-                Token op = Previous();
-                Expression right = ParseUnary();
-                return new UnaryExpression(op.Type, right, op.Line, op.Column);
-            }
-
-            return ParsePrimary();
-        }
+        // ==========================================
+        // PRIMARY
+        // ==========================================
 
         private Expression ParsePrimary()
         {
+            // NUMBER
+
             if (Match(TokenType.NUMBER))
             {
-                Token current = Previous();
-                double value = double.Parse(current.Value, System.Globalization.CultureInfo.InvariantCulture);
-                return new NumberExpression(value, current.Line, current.Column);
+                return new NumberExpression(
+                    double.Parse(Previous().Value));
             }
+
+            // STRING
+
+            if (Match(TokenType.STRING))
+            {
+                return new StringExpression(
+                    Previous().Value);
+            }
+
+            // ARRAY
+
+            if (Match(TokenType.LBRACKET))
+            {
+                var elements = new List<Expression>();
+
+                if (!Check(TokenType.RBRACKET))
+                {
+                    do
+                    {
+                        elements.Add(ParseExpression());
+                    }
+                    while (Match(TokenType.COMMA));
+                }
+
+                Consume(
+                    TokenType.RBRACKET,
+                    "Expected ']'");
+
+                return new ArrayExpression(elements);
+            }
+
+            // IDENTIFIER
 
             if (Match(TokenType.ID))
             {
-                Token current = Previous();
-                return new VariableExpression(current.Value, current.Line, current.Column);
-            }
+                Expression expr =
+                    new VariableExpression(
+                        Previous().Value);
 
-            if (Match(TokenType.LPAREN))
-            {
-                Expression expr = ParseExpression();
-                Consume(TokenType.RPAREN, "Ожидается ')' после выражения.");
+                while (true)
+                {
+                    // FUNCTION CALL
+
+                    if (Match(TokenType.LPAREN))
+                    {
+                        var args =
+                            new List<Expression>();
+
+                        if (!Check(TokenType.RPAREN))
+                        {
+                            do
+                            {
+                                args.Add(ParseExpression());
+                            }
+                            while (Match(TokenType.COMMA));
+                        }
+
+                        Consume(
+                            TokenType.RPAREN,
+                            "Expected ')'");
+
+                        expr = new CallExpression(
+                            ((VariableExpression)expr).Name,
+                            args);
+
+                        continue;
+                    }
+
+                    // ARRAY INDEX
+
+                    if (Match(TokenType.LBRACKET))
+                    {
+                        var index = ParseExpression();
+
+                        Consume(
+                            TokenType.RBRACKET,
+                            "Expected ']'");
+
+                        expr = new IndexExpression(
+                            expr,
+                            index);
+
+                        continue;
+                    }
+
+                    break;
+                }
+
                 return expr;
             }
 
-            Error(Peek(), "Ожидается выражение.");
-            throw new ParseException();
+            // GROUPING
+
+            if (Match(TokenType.LPAREN))
+            {
+                var expr = ParseExpression();
+
+                Consume(
+                    TokenType.RPAREN,
+                    "Expected ')'");
+
+                return expr;
+            }
+
+            throw Error(Peek(), "Expected expression");
         }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
 
         private bool Match(params TokenType[] types)
         {
@@ -279,53 +291,55 @@ namespace CompilerLabs.Core.Parser
                     return true;
                 }
             }
+
             return false;
+        }
+
+        private Token Consume(
+            TokenType type,
+            string message)
+        {
+            if (Check(type))
+                return Advance();
+
+            throw Error(Peek(), message);
         }
 
         private bool Check(TokenType type)
         {
-            if (IsAtEnd()) return false;
+            if (IsAtEnd())
+                return false;
+
             return Peek().Type == type;
         }
 
         private Token Advance()
         {
-            if (!IsAtEnd()) _position++;
+            if (!IsAtEnd())
+                _position++;
+
             return Previous();
         }
 
-        private bool IsAtEnd() => Peek().Type == TokenType.EOF;
-        private Token Peek() => _tokens[_position];
-        private Token Previous() => _tokens[_position - 1];
+        private bool IsAtEnd()
+            => Peek().Type == TokenType.EOF;
 
-        private Token Consume(TokenType type, string message)
-        {
-            if (Check(type)) return Advance();
-            Error(Peek(), message);
-            throw new ParseException();
-        }
+        private Token Peek()
+            => _tokens[_position];
 
-        private void Error(Token token, string message)
-        {
-            Errors.Add($"[Parser Error] Line {token.Line}, Col {token.Column}: {message}");
-        }
-        private void Synchronize()
-        {
-            Advance();
-            while (!IsAtEnd())
-            {
-                if (Previous().Type == TokenType.SEMICOLON) return;
+        private Token Previous()
+            => _tokens[_position - 1];
 
-                switch (Peek().Type)
-                {
-                    case TokenType.VAR:
-                    case TokenType.PRINT:
-                    case TokenType.IF:
-                    case TokenType.WHILE:
-                        return;
-                }
-                Advance();
-            }
+        private Exception Error(
+            Token token,
+            string message)
+        {
+            var error =
+                $"Parser error at '{token.Value}': {message}";
+
+            Errors.Add(error);
+
+            return new Exception(error);
         }
     }
 }

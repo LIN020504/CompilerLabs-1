@@ -1,31 +1,33 @@
-﻿using CompilerLabs.Core;
-using CompilerLabs.Core.Lexer;
-using System.Text;
+﻿using CompilerLabs.Core.Lexer;
+using System;
 
 namespace Lab01.LexerDemo
 {
-    internal class Program
+    class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
-            var generator = new RandomProgramGenerator();
+            string code = @"
+                fun add(a, b) {
+                    return [a + b, ""hello"", true];
+                }
 
-            string randomCode = generator.Generate(10);
+                x = add(10, 20);
+                y = x[0];
+            ";
 
-            Console.WriteLine("=== СГЕНЕРИРОВАННЫЙ КОД ===");
-            Console.WriteLine(randomCode);
-            Console.WriteLine("===========================\n");
+            var lexer = new Lexer(code);
 
-            var lexer = new Lexer(randomCode);
-            var tokens = lexer.Tokenize();
+            Console.WriteLine("TOKENS:");
+            Console.WriteLine("--------------------------------");
 
-            Console.WriteLine("=== ТОКЕНЫ ===");
-            foreach (var token in tokens)
+            foreach (var token in lexer.Tokenize())
             {
-                Console.WriteLine(token);
+                Console.WriteLine(
+                    $"{token.Type,-15} {token.Value}");
             }
 
-            Console.ReadKey();
+            Console.WriteLine("--------------------------------");
         }
     }
 }
