@@ -1,27 +1,27 @@
-﻿namespace CompilerLabs.Core.Lexer;
-public enum TokenType
+﻿namespace CompilerLabs.Core.Lexer
 {
-    STRING,
-    NUMBER,
-    ID,
+    public enum TokenType
+    {
+        NUMBER,
+        ID,
+        STRING,
+        VAR,
 
-    PLUS, MINUS, STAR, SLASH,
-    EQ,
+        PRINT,
+        IF, ELSE,
+        WHILE,      // while
+        FUNC, RETURN,
+        // Operators
+        PLUS, MINUS, STAR, SLASH,   // + - * /
+        EQ, EQEQ, EXCL, NEQ,        // = == ! !=
+        LT, GT, LTEQ, GTEQ,         // < > <= >=
+        AND, OR,                    // && ||
 
-    SEMICOLON,
-
-    FUN,
-    RETURN,
-    COMMA,
-    LPAREN, RPAREN,
-    LBRACE, RBRACE,
-
-    EOF,
-
-    
-    LBRACKET,   // [
-    RBRACKET,   // ]
-    TRUE,
-    FALSE,
-    
+        // Grouping & Punctuation
+        LPAREN, RPAREN, // ( )
+        LBRACE, RBRACE, // { }
+        SEMICOLON,      // ;
+        COMMA,
+        EOF
+    }
 }

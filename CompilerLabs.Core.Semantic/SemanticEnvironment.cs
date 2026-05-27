@@ -5,7 +5,6 @@ namespace CompilerLabs.Core.Semantic
     public class SemanticEnvironment
     {
         private readonly SemanticEnvironment? _parent;
-
         private readonly Dictionary<string, SymbolInfo> _variables;
 
         public SemanticEnvironment(SemanticEnvironment? parent = null)
@@ -14,14 +13,39 @@ namespace CompilerLabs.Core.Semantic
             _variables = new Dictionary<string, SymbolInfo>();
         }
 
-        public bool DefineVariable(string name, bool isInitialized)
+        public bool DefineFunction(string name, int arity)
         {
             if (_variables.ContainsKey(name))
             {
                 return false;
             }
 
-            _variables[name] = new SymbolInfo { Name = name, IsInitialized = isInitialized };
+            _variables[name] = new SymbolInfo
+            {
+                Name = name,
+                IsInitialized = true, // Функции считаются всегда инициализированными
+                IsUsed = true,
+                Type = DataType.Function,
+                Arity = arity
+            };
+            return true;
+        }
+
+        // При объявлении теперь жестко фиксируем тип переменной
+        public bool DefineVariable(string name, bool isInitialized, DataType type)
+        {
+            if (_variables.ContainsKey(name))
+            {
+                return false;
+            }
+
+            _variables[name] = new SymbolInfo
+            {
+                Name = name,
+                IsInitialized = isInitialized,
+                IsUsed = false,
+                Type = type
+            };
             return true;
         }
 

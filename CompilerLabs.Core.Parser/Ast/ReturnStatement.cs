@@ -1,11 +1,19 @@
-using CompilerLabs.Core.Parser.Ast;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-public class ReturnStatement : Statement
+namespace CompilerLabs.Core.Parser.Ast
 {
-    public Expression Value;
-
-    public ReturnStatement(Expression value)
+    public class ReturnStatement : Statement
     {
-        Value = value;
+        public Expression? Value { get; }
+
+        public ReturnStatement(Expression? value, int line, int col)
+            : base(line, col)
+        {
+            Value = value;
+        }
     }
 }

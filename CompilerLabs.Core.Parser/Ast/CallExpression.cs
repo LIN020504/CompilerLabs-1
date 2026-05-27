@@ -1,15 +1,21 @@
-using CompilerLabs.Core.Parser.Ast;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-public class CallExpression : Expression
+namespace CompilerLabs.Core.Parser.Ast
 {
-    public string FunctionName;
-    public List<Expression> Arguments;
-
-    public CallExpression(
-        string functionName,
-        List<Expression> arguments)
+    public class CallExpression : Expression
     {
-        FunctionName = functionName;
-        Arguments = arguments;
+        public string CalleeName { get; }
+        public List<Expression> Arguments { get; }
+
+        public CallExpression(string calleeName, List<Expression> arguments, int line, int col)
+            : base(line, col)
+        {
+            CalleeName = calleeName;
+            Arguments = arguments;
+        }
     }
 }
